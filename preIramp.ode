@@ -1,0 +1,87 @@
+# Model of Abdulla, Phillips and Rubin for ramping bursts in preBotC neurons
+# J. Comp. Neurosci., accepted September, 2021
+
+# ICs and parameters given here are the ones used to produce Fig. 2A in the manuscript, "Dynamics of Ramping Bursts in a Respiratory Neuron Model"
+
+# Variables & Initial Conditions
+
+init v=-57.10139605281402
+init hna=0.2938916862111656, hnap=0.2678837443118687,mna=0.09821893767432259,mnap=0.03814546648120781,n=0.05121439693486479
+
+#Constants
+#System
+par C=36
+par gamma=0.000007214, beta=14.555
+
+#Concentrations(mM)
+init Kout=4
+par Kin=150
+par Naout=120
+par Nain=15
+
+#Conductances (nS)
+par gNa=150,gNaP=5,gL=2.5
+par gsyn=0.365,gK=160
+
+#Sodium Current Constants (mV)
+par VmNa=-43.8,VhNa=-67.5
+par kmNa=6,khNa=-11.8
+par kmtNa=14,khtNa=-12.8
+
+#Persistent Sodium Current
+par VmNaP=-47.1,VhNaP=-60
+par kmNaP=3.1,khNaP=-9
+par kmtNaP=6.2,khtNaP=9
+
+#INa and INaP Time Constants (ms)
+par tmNamax=0.25,thNamax=8.46
+par tmNaPmax=1,thNaPmax=5000
+
+#Constants for n
+par nA=0.011,nAV=44,nAk=5
+par nB=0.17,nBV=49,nBk=40
+
+#Reversal Potentials (mV)
+par EL=-68,ECl=-90,Esyn=-10
+ENa=26.7*ln(Naout/Nain)
+EK=26.7*ln(Kout/Kin)
+
+#Currents
+INa=gNa*(mNa^3)*hNa*(V-ENa)
+INaP=gNaP*mNaP*hNaP*(V-ENa)
+IK=gK*(n^4)*(V-EK)
+IL=gL*(V-EL)
+ISyn=gsyn*(V-Esyn)
+
+#Auxiliary
+aux RevK=EK
+aux RevNa=ENa
+
+#Intermediate Functions
+k1(V)=(nA*(nAV+V))/(1-exp((-nAV-V)/nAk))
+k2(V)=nB*exp((-V-nBV)/nBk)
+tau_n(V)=1/(k1(V)+k2(V))
+n_inf(V)=k1(V)/(k1(V)+k2(V))
+
+#Kout Regulators
+#Diffusion
+par taudiff=750, kbath=4
+Idiff=(Kout-kbath)/taudiff
+
+#Glia
+par zg=10,kf=6.25,Gmax=0.5
+Iglia=Gmax/(1+exp(zg*(kf-Kout)))
+
+#Differential Equations
+V'=(-INa-INaP-IK-IL-Isyn)/C
+hNa'=((1/(1+exp(-(V-VhNa)/khNa)))-hNa)*((cosh((V-VhNa)/khtNa))/thNamax)
+hNaP'=((1/(1+exp(-(V-VhNaP)/khNaP)))-hNaP)*((cosh((V-VhNaP)/khtNaP))/thNaPmax)
+mNa'=((1/(1+exp(-(V-VmNa)/kmNa)))-mNa)*((cosh((V-VmNa)/kmtNa))/tmNamax)
+mNaP'=((1/(1+exp(-(V-VmNaP)/kmNaP)))-mNaP)*((cosh((V-VmNaP)/kmtNaP))/tmNaPmax)
+n'=(n_inf(V)-n)/(tau_n(V))
+Kout'=(gamma*beta*IK-Idiff-Iglia)
+
+#Extra Settings
+@ total=30000,dt=0.1,bounds=100000,maxstor=100000
+@ xlo=0,xhi=30000,ylo=-65,yhi=-10
+@ meth=cvode,tol=1e-6,atol=1e-6
